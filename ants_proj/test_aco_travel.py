@@ -3,7 +3,8 @@
 使用abstrace_tools.py中的3个测试场景
 '''
 
-from aco_time_window import TimeWindowWorld, AntColonySystem, TimeWindowRepair
+from aco_time_window import TimeWindowWorld, AntColonySystem
+from repair_strategy import TimeWindowRepair
 
 
 def format_time(minutes):
