@@ -54,7 +54,7 @@ def print_solution(solution, test_name):
               f"{detail['status']:<12}")
 
 
-def test_scenario_1():
+def scenario_1_test():
     '''
     测试场景1: 正常情况 - 所有节点都在时间窗内
     '''
@@ -91,7 +91,7 @@ def test_scenario_1():
     print_solution(solution, "测试场景1: 正常情况 - 所有节点都在时间窗内")
 
 
-def test_scenario_2():
+def scenario_2_test():
     '''
     测试场景2: 等待场景 - 到达太早,需要等待开放
     '''
@@ -126,7 +126,7 @@ def test_scenario_2():
     print_solution(solution, "测试场景2: 等待场景 - 到达太早,需要等待开放")
 
 
-def test_scenario_3():
+def scenario_3_test():
     '''
     测试场景3: 违反时间窗 - 到达太晚,超出关闭时间
     '''
@@ -161,7 +161,7 @@ def test_scenario_3():
     print_solution(solution, "测试场景3: 违反时间窗 - 到达太晚,超出关闭时间")
 
 
-def test_scenario_4():
+def scenario_4_test():
     '''
     测试场景4: 时间窗数学无解 - 无论如何排列都会违反时间窗
     
@@ -263,7 +263,7 @@ def test_scenario_4():
             print("✅ 所有节点满足时间窗约束！")
 
 
-def test_scenario_5():
+def scenario_5_test():
     '''
     测试场景5: 连锁修复 - 替换导致游玩时间延长，3次传导修复
     
@@ -362,7 +362,7 @@ def test_scenario_5():
         print("\n最终验证: 检查是否所有节点满足时间窗...")
 
 
-def test_scenario_6():
+def scenario_6_test():
     '''
     测试场景6: 连锁修复 - 替换导致通勤时间增加，3次传导修复
     
@@ -473,22 +473,22 @@ if __name__ == "__main__":
     print("="*80)
     
     # # 测试场景1: 正常情况
-    # test_scenario_1()
+    # scenario_1_test()
     # #
     # # # 测试场景2: 等待场景
-    # test_scenario_2()
+    # scenario_2_test()
     # #
     # # # 测试场景3: 违反时间窗
-    # test_scenario_3()
+    # scenario_3_test()
     # 
     # # 测试场景4: 时间窗数学无解
-    # test_scenario_4()
+    # scenario_4_test()
     
     # 测试场景5: 连锁修复 - 游玩时间延长
-    test_scenario_5()
+    scenario_5_test()
     
     # 测试场景6: 连锁修复 - 通勤时间增加
-    test_scenario_6()
+    scenario_6_test()
     
     print("\n" + "="*80)
     print("所有测试完成!")
