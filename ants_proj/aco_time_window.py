@@ -30,6 +30,7 @@ class Edge:
         self.pheromone = pheromone
 
 
+# 这个世界是关键是 需要保存的点
 class TimeWindowWorld:
     '''
     带时间窗约束的问题空间
@@ -43,7 +44,7 @@ class TimeWindowWorld:
     - edges: 所有边的列表
     '''
     
-    def __init__(self, travel_times, time_windows, service_times, start_time=480, init_pheromone=1.0):
+    def __init__(self, travel_times, time_windows, service_times, start_time=480, init_pheromone=1.0, node_ids=None):
         '''
         参数:
         - travel_times: 通勤时间矩阵 (分钟)
@@ -51,6 +52,7 @@ class TimeWindowWorld:
         - service_times: 游玩时间列表 (分钟)
         - start_time: 出发时间 (分钟, 默认480=8:00)
         - init_pheromone: 初始信息素 (默认1.0)
+        - node_ids: 节点ID列表 (默认为索引 [0,1,2,...])
         '''
         self.n_nodes = len(travel_times)
         self.travel_times = np.array(travel_times)
@@ -58,6 +60,15 @@ class TimeWindowWorld:
         self.service_times = service_times
         self.start_time = start_time
         self.init_pheromone = init_pheromone
+        
+        # 节点ID映射
+        if node_ids is None:
+            self.node_ids = list(range(self.n_nodes))
+        else:
+            self.node_ids = node_ids
+        
+        self.id2index = {node_id: idx for idx, node_id in enumerate(self.node_ids)}
+        self.index2id = {idx: node_id for idx, node_id in enumerate(self.node_ids)}
         
         # 创建所有边
         self.edges = []
@@ -70,6 +81,9 @@ class TimeWindowWorld:
                 if i != j:
                     travel_time = self.travel_times[i][j]
                     edge = Edge(i, j, travel_time, self.init_pheromone)
+                    # 为边添加ID信息
+                    edge.from_id = self.index2id[i]
+                    edge.to_id = self.index2id[j]
                     self.edges.append(edge)
     
     def get_edge(self, start, end):
@@ -83,6 +97,63 @@ class TimeWindowWorld:
         '''重置所有边的信息素'''
         for edge in self.edges:
             edge.pheromone = self.init_pheromone
+    
+    def export_pheromones(self):
+        '''
+        导出所有边的信息素
+        返回: [{'from_id': X, 'to_id': Y, 'pheromone': v}, ...]
+        '''
+        records = []
+        for edge in self.edges:
+            records.append({
+                'from_id': edge.from_id,
+                'to_id': edge.to_id,
+                'pheromone': edge.pheromone
+            })
+        return records
+    
+    def import_pheromones(self, records, tau_min=None, tau_max=None, scale=1.0):
+        '''
+        导入信息素记录
+        
+        参数:
+        - records: [{'from_id': X, 'to_id': Y, 'pheromone': v}, ...]
+        - tau_min: 信息素下限 (可选)
+        - tau_max: 信息素上限 (可选)
+        - scale: 缩放因子 (默认1.0，可用于温和重置)
+        '''
+        # 构建快速查找字典
+        pheromone_dict = {}
+        for record in records:
+            key = (record['from_id'], record['to_id'])
+            pheromone_dict[key] = record['pheromone']
+        
+        # 更新边的信息素
+        for edge in self.edges:
+            key = (edge.from_id, edge.to_id)
+            if key in pheromone_dict:
+                pheromone = pheromone_dict[key] * scale
+                
+                # 应用边界
+                if tau_min is not None:
+                    pheromone = max(pheromone, tau_min)
+                if tau_max is not None:
+                    pheromone = min(pheromone, tau_max)
+                
+                edge.pheromone = pheromone
+    
+    def get_pheromone_stats(self):
+        '''
+        获取信息素统计信息
+        返回: {'min': x, 'max': y, 'mean': z, 'median': w}
+        '''
+        pheromones = [edge.pheromone for edge in self.edges]
+        return {
+            'min': min(pheromones),
+            'max': max(pheromones),
+            'mean': np.mean(pheromones),
+            'median': np.median(pheromones)
+        }
 
 
 class Ant:
@@ -248,10 +319,10 @@ class Ant:
             # 计算到达时间
             arrival_time = self._calculate_arrival_time(edge)
             
-            # 检查时间窗
+            # 检查时间窗 并返回服务开始时间
             service_start_time, violated, penalty = self._check_time_window(edge.end, arrival_time)
             
-            # 更新成本
+            # 更新成本 成本函数是让到达时间最少的最好
             self.total_cost += edge.travel_time + penalty
             
             # 更新状态
@@ -262,7 +333,7 @@ class Ant:
             
             # 更新当前时间: 服务开始时间 + 游玩时间
             self.current_time = service_start_time + self.world.service_times[edge.end]
-        
+
         return self.total_cost
     
     def update_pheromone(self, deposit_amount):
@@ -312,7 +383,7 @@ class AntColonySystem:
         self.elite_ratio = elite_ratio
         self.elite_deposit = elite_deposit
         
-        # 创建蚁群
+        # 创建蚁群 所有蚁群共用一个world
         self.ants = [Ant(world, alpha, beta) for _ in range(n_ants)]
         
         # 最佳解
@@ -425,3 +496,104 @@ class AntColonySystem:
             'visited': self.best_visited,
             'path_details': path_details
         }
+    
+    def export_best(self):
+        '''
+        导出最佳解摘要
+        返回: {'best_cost': x, 'best_visited_ids': [...], 'best_path': [...], 'cost_history': [...]}
+        '''
+        if self.best_path is None:
+            return None
+        
+        # 转换访问顺序为ID
+        best_visited_ids = [self.world.index2id[idx] for idx in self.best_visited]
+        
+        # 转换路径为ID
+        best_path_records = []
+        for edge in self.best_path:
+            best_path_records.append({
+                'from_id': edge.from_id,
+                'to_id': edge.to_id,
+                'travel_time': edge.travel_time
+            })
+        
+        return {
+            'best_cost': self.best_cost,
+            'best_visited_ids': best_visited_ids,
+            'best_path': best_path_records,
+            'cost_history': self.cost_history.copy()
+        }
+    
+    def import_best(self, summary):
+        '''
+        导入最佳解摘要 (可选，用于展示或warm-start)
+        
+        参数:
+        - summary: export_best()返回的字典
+        '''
+        if summary is None:
+            return
+        
+        self.best_cost = summary['best_cost']
+        self.cost_history = summary['cost_history'].copy()
+        
+        # 注意: best_visited 和 best_path 需要根据当前 world 的节点集重建
+        # 这里仅保存成本和历史，不重建路径
+    
+    def continue_optimize(self, n_more_iterations, verbose=True):
+        '''
+        继续优化 (不重置信息素和最佳解)
+        
+        参数:
+        - n_more_iterations: 额外迭代次数
+        - verbose: 是否打印日志
+        '''
+        if verbose:
+            print('| iter |         min        |         max        |        best        |')
+            print('-' * 80)
+        
+        start_iteration = len(self.cost_history) + 1
+        
+        for iteration in range(start_iteration, start_iteration + n_more_iterations):
+            # 所有蚂蚁构建路径
+            ant_results = []
+            for ant in self.ants:
+                cost = ant.create_path()
+                ant_results.append((cost, ant))
+            
+            # 按成本排序
+            ant_results.sort(key=lambda x: x[0])
+            
+            # 更新全局最佳解
+            min_cost = ant_results[0][0]
+            max_cost = ant_results[-1][0]
+            
+            if min_cost < self.best_cost:
+                self.best_cost = min_cost
+                self.best_path = ant_results[0][1].path.copy()
+                self.best_visited = ant_results[0][1].visited.copy()
+            
+            # 所有蚂蚁更新信息素
+            for cost, ant in ant_results:
+                ant.update_pheromone(self.pheromone_deposit)
+            
+            # 精英蚂蚁额外更新信息素
+            n_elite = int(self.elite_ratio * self.n_ants)
+            for i in range(n_elite):
+                ant_results[i][1].update_pheromone(self.elite_deposit)
+            
+            # 信息素挥发
+            for edge in self.world.edges:
+                edge.pheromone *= (1 - self.evaporation_rate)
+            
+            # 记录历史
+            self.cost_history.append(self.best_cost)
+            
+            # 打印日志
+            if verbose:
+                print('|%6d|%20.2f|%20.2f|%20.2f|' % (iteration, min_cost, max_cost, self.best_cost))
+        
+        if verbose:
+            print('-' * 80)
+            print(f'继续优化完成! 最佳成本: {self.best_cost:.2f}')
+            print(f'最佳路径: {self.best_visited}')

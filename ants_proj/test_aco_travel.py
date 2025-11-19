@@ -467,6 +467,199 @@ def test_scenario_6():
         print("\n最终验证: 检查是否所有节点满足时间窗...")
 
 
+def test_scenario_7():
+    '''
+    测试场景7: 基于景点名称的节点增删与继续优化 (方案B演示)
+    
+    演示流程:
+    1. 初始优化: 4个景点 (起点、故宫、颐和园、天坛)
+    2. 导出信息素
+    3. 新增景点: 鸟巢
+    4. 导入旧信息素，继续优化
+    5. 删除景点: 天坛
+    6. 导入信息素，继续优化
+    '''
+    print("\n" + "="*80)
+    print("测试场景7: 基于景点名称的节点增删与继续优化")
+    print("="*80)
+    
+    # ========== 第1回合: 初始优化 ==========
+    print("\n【第1回合】初始优化 - 4个景点")
+    print("-" * 80)
+    
+    node_ids_r1 = ['起点', '故宫', '颐和园', '天坛']
+    travel_times_r1 = [
+        [0, 30, 45, 60],
+        [30, 0, 35, 40],
+        [45, 35, 0, 50],
+        [60, 40, 50, 0]
+    ]
+    time_windows_r1 = [
+        (480, 1200),   # 起点: 8:00-20:00
+        (540, 1080),   # 故宫: 9:00-18:00
+        (600, 1140),   # 颐和园: 10:00-19:00
+        (540, 1200)    # 天坛: 9:00-20:00
+    ]
+    service_times_r1 = [0, 90, 120, 60]
+    start_time = 480  # 8:00出发
+    
+    # 创建问题空间 (带node_ids)
+    world_r1 = TimeWindowWorld(
+        travel_times_r1, 
+        time_windows_r1, 
+        service_times_r1, 
+        start_time,
+        node_ids=node_ids_r1
+    )
+    
+    print(f"节点列表: {node_ids_r1}")
+    
+    # 创建蚁群系统
+    aco_r1 = AntColonySystem(world_r1, n_ants=15, n_iterations=30)
+    
+    # 优化
+    print("\n开始优化...")
+    aco_r1.optimize(verbose=True)
+    
+    # 获取最佳解
+    solution_r1 = aco_r1.get_best_solution()
+    print_solution(solution_r1, "第1回合结果")
+    
+    # 导出信息素和最佳解
+    pheromones_r1 = world_r1.export_pheromones()
+    best_r1 = aco_r1.export_best()
+    
+    print(f"\n信息素统计: {world_r1.get_pheromone_stats()}")
+    print(f"导出了 {len(pheromones_r1)} 条边的信息素")
+    print(f"最佳访问顺序(ID): {best_r1['best_visited_ids']}")
+    
+    # ========== 第2回合: 新增景点 "鸟巢" ==========
+    print("\n" + "="*80)
+    print("【第2回合】新增景点 '鸟巢'，继续优化")
+    print("-" * 80)
+    
+    node_ids_r2 = ['起点', '故宫', '颐和园', '天坛', '鸟巢']
+    travel_times_r2 = [
+        [0, 30, 45, 60, 40],
+        [30, 0, 35, 40, 25],
+        [45, 35, 0, 50, 30],
+        [60, 40, 50, 0, 45],
+        [40, 25, 30, 45, 0]
+    ]
+    time_windows_r2 = [
+        (480, 1200),   # 起点: 8:00-20:00
+        (540, 1080),   # 故宫: 9:00-18:00
+        (600, 1140),   # 颐和园: 10:00-19:00
+        (540, 1200),   # 天坛: 9:00-20:00
+        (600, 1080)    # 鸟巢: 10:00-18:00 (新增)
+    ]
+    service_times_r2 = [0, 90, 120, 60, 75]
+    
+    # 创建新的问题空间
+    world_r2 = TimeWindowWorld(
+        travel_times_r2,
+        time_windows_r2,
+        service_times_r2,
+        start_time,
+        node_ids=node_ids_r2
+    )
+    
+    print(f"节点列表: {node_ids_r2}")
+    print(f"新增节点: 鸟巢")
+    
+    # 导入旧信息素 (旧边保留，新边使用默认值)
+    print("\n导入第1回合的信息素...")
+    world_r2.import_pheromones(pheromones_r1, tau_min=0.1, tau_max=10.0)
+    
+    print(f"导入后信息素统计: {world_r2.get_pheromone_stats()}")
+    
+    # 创建新的蚁群系统
+    aco_r2 = AntColonySystem(world_r2, n_ants=15, n_iterations=20)
+    
+    # 继续优化
+    print("\n继续优化...")
+    aco_r2.optimize(verbose=True)
+    
+    # 获取最佳解
+    solution_r2 = aco_r2.get_best_solution()
+    print_solution(solution_r2, "第2回合结果 (新增鸟巢)")
+    
+    # 导出信息素和最佳解
+    pheromones_r2 = world_r2.export_pheromones()
+    best_r2 = aco_r2.export_best()
+    
+    print(f"\n信息素统计: {world_r2.get_pheromone_stats()}")
+    print(f"最佳访问顺序(ID): {best_r2['best_visited_ids']}")
+    
+    # ========== 第3回合: 删除景点 "天坛" ==========
+    print("\n" + "="*80)
+    print("【第3回合】删除景点 '天坛'，继续优化")
+    print("-" * 80)
+    
+    node_ids_r3 = ['起点', '故宫', '颐和园', '鸟巢']
+    travel_times_r3 = [
+        [0, 30, 45, 40],
+        [30, 0, 35, 25],
+        [45, 35, 0, 30],
+        [40, 25, 30, 0]
+    ]
+    time_windows_r3 = [
+        (480, 1200),   # 起点: 8:00-20:00
+        (540, 1080),   # 故宫: 9:00-18:00
+        (600, 1140),   # 颐和园: 10:00-19:00
+        (600, 1080)    # 鸟巢: 10:00-18:00
+    ]
+    service_times_r3 = [0, 90, 120, 75]
+    
+    # 创建新的问题空间
+    world_r3 = TimeWindowWorld(
+        travel_times_r3,
+        time_windows_r3,
+        service_times_r3,
+        start_time,
+        node_ids=node_ids_r3
+    )
+    
+    print(f"节点列表: {node_ids_r3}")
+    print(f"删除节点: 天坛")
+    
+    # 导入第2回合的信息素 (涉及天坛的边自动忽略)
+    print("\n导入第2回合的信息素...")
+    world_r3.import_pheromones(pheromones_r2, tau_min=0.1, tau_max=10.0, scale=0.95)
+    
+    print(f"导入后信息素统计: {world_r3.get_pheromone_stats()}")
+    
+    # 创建新的蚁群系统
+    aco_r3 = AntColonySystem(world_r3, n_ants=15, n_iterations=20)
+    
+    # 继续优化
+    print("\n继续优化...")
+    aco_r3.optimize(verbose=True)
+    
+    # 获取最佳解
+    solution_r3 = aco_r3.get_best_solution()
+    print_solution(solution_r3, "第3回合结果 (删除天坛)")
+    
+    # 导出最终结果
+    best_r3 = aco_r3.export_best()
+    
+    print(f"\n最终信息素统计: {world_r3.get_pheromone_stats()}")
+    print(f"最佳访问顺序(ID): {best_r3['best_visited_ids']}")
+    
+    # ========== 总结 ==========
+    print("\n" + "="*80)
+    print("方案B演示总结")
+    print("="*80)
+    print(f"第1回合 (4景点): 成本 {solution_r1['cost']:.2f}, 路径 {best_r1['best_visited_ids']}")
+    print(f"第2回合 (新增鸟巢): 成本 {solution_r2['cost']:.2f}, 路径 {best_r2['best_visited_ids']}")
+    print(f"第3回合 (删除天坛): 成本 {solution_r3['cost']:.2f}, 路径 {best_r3['best_visited_ids']}")
+    print("\n✅ 方案B优势:")
+    print("  - 使用景点名称作为稳定ID，节点增删不影响历史信息素")
+    print("  - 旧边的信息素自动保留，新边使用默认值")
+    print("  - 删除节点时，相关边自动忽略")
+    print("  - 支持跨回合持续优化，学习可延续")
+
+
 if __name__ == "__main__":
     print("="*80)
     print("带时间窗约束的蚁群算法测试")
@@ -485,10 +678,13 @@ if __name__ == "__main__":
     # test_scenario_4()
     
     # 测试场景5: 连锁修复 - 游玩时间延长
-    test_scenario_5()
+    # test_scenario_5()
     
     # 测试场景6: 连锁修复 - 通勤时间增加
-    test_scenario_6()
+    # test_scenario_6()
+    
+    # 测试场景7: 基于景点名称的节点增删与继续优化 (方案B演示)
+    test_scenario_7()
     
     print("\n" + "="*80)
     print("所有测试完成!")
