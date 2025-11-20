@@ -467,7 +467,7 @@ def scenario_6_test():
         print("\n最终验证: 检查是否所有节点满足时间窗...")
 
 
-def test_scenario_7():
+def scenario_7_test():
     '''
     测试场景7: 基于景点名称的节点增删与继续优化 (方案B演示)
     
@@ -684,11 +684,8 @@ if __name__ == "__main__":
     # test_scenario_6()
     
     # 测试场景7: 基于景点名称的节点增删与继续优化 (方案B演示)
-    test_scenario_7()
-    scenario_5_test()
-    
-    # 测试场景6: 连锁修复 - 通勤时间增加
-    scenario_6_test()
+    scenario_7_test()
+
     print("\n" + "="*80)
     print("所有测试完成!")
     print("="*80)

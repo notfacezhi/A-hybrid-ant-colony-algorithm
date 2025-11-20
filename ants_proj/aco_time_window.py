@@ -409,6 +409,7 @@ class AntColonySystem:
             # 所有蚂蚁构建路径
             ant_results = []
             for ant in self.ants:
+                # 每只蚂蚁找最佳路线需要历史信息素
                 cost = ant.create_path()
                 ant_results.append((cost, ant))
             
